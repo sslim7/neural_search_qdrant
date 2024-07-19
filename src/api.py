@@ -64,6 +64,18 @@ def count_all():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/search_help", summary="Search for swit help center", description="검색질의를 자연어로 입력하세요")
+def search_help(
+    q: str = Query(..., description="검색질의를 자연어로 입력하세요"),
+    skip: int = Query(0, description="페이지 시작 위치"),
+    limit: int = Query(5, description="페이지 크기")
+):
+    try:
+        return {"result": neural_searcher.search(text=q, skip=skip, limit=limit)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -98,3 +98,31 @@ class NeuralSearcher:
         except Exception as e:
             print(f"Error in count_all: {str(e)}")
             raise
+
+    def search_help(self, text: str, skip: int = 0, limit: int = 5):
+        vector = self.model.encode(text).tolist()
+        cn='swit_help'
+        # 실제 데이터를 가져오기 위한 호출
+        search_result = self.qdrant_client.search(
+            collection_name=cn,
+            query_vector=vector,
+            limit=limit,
+            offset=skip
+        )
+        payloads = [hit.payload for hit in search_result]
+
+        # 전체 문서 수를 계산하기 위한 스크롤
+        scroll_result = self.qdrant_client.scroll(
+            collection_name=cn,
+            limit=100
+        )
+        total_count = len(scroll_result.points)
+        while scroll_result.next_page_offset is not None:
+            scroll_result = self.qdrant_client.scroll(
+                collection_name=cn,
+                limit=100,
+                offset=scroll_result.next_page_offset
+            )
+            total_count += len(scroll_result.points)
+
+        return {"total_count": total_count, "results": payloads}
