@@ -16,37 +16,41 @@ def scrape_page(url):
 
     print(f"Scraping {url}")
     visited_urls.add(url)
-    response = session.get(url)
-    response.html.render()  # JavaScript를 실행하여 페이지의 전체 내용을 로드합니다.
-    soup = BeautifulSoup(response.html.html, "html.parser")
+    try:
+        response = session.get(url)
+        response.html.render(timeout=20)  # JavaScript를 실행하여 페이지의 전체 내용을 로드합니다.
+        soup = BeautifulSoup(response.html.html, "html.parser")
 
-    # Get title
-    title = soup.find("title").text if soup.find("title") else "No title"
+        # Get title
+        title = soup.find("title").text if soup.find("title") else "No title"
 
-    # Get meta description
-    meta_description = soup.find("meta", attrs={"name": "description"})
-    description = meta_description['content'] if meta_description else "No description"
-    print("\ntitle:\n", title)
-    print("\ndescription:\n", description)
-    # Get content from the article
-    content_div = soup.select_one("article")
-    if content_div:
-        print("\ncontent:\n", content_div.text.strip())
-        data.append({
-            "title": title,
-            "description": description,
-            "content": content_div.text.strip(),
-            "url": url
-        })
-    else:
-        print(f"No article content found at {url}")
+        # Get meta description
+        meta_description = soup.find("meta", attrs={"name": "description"})
+        description = meta_description['content'] if meta_description else "No description"
+#        print("\ntitle:\n", title)
+#       print("\ndescription:\n", description)
 
-    # Find all links to other help pages
-    links = soup.find_all("a", href=True)
-    for link in links:
-        full_url = base_url + link['href'] if link['href'].startswith("/") else link['href']
-        scrape_page(full_url)
-        time.sleep(0.1)  # Add a delay to avoid overloading the server
+        # Get content from the article
+        content_div = soup.select_one("article")
+        if content_div:
+#            print("\ncontent:\n", content_div.text.strip())
+            data.append({
+                "url": url,
+                "title": title,
+                "description": description,
+                "content": content_div.text.strip()
+            })
+        else:
+            print(f"No article content found at {url}")
+
+        # Find all links to other help pages
+        links = soup.find_all("a", href=True)
+        for link in links:
+            full_url = base_url + link['href'] if link['href'].startswith("/") else link['href']
+            scrape_page(full_url)
+            time.sleep(0.1)  # Add a delay to avoid overloading the server
+    except Exception as e:
+        print(f"Error scraping {url}: {e}")
 
 # Start scraping from the base URL
 scrape_page(base_url)
