@@ -28,7 +28,7 @@ def scrape_page(url):
         meta_description = soup.find("meta", attrs={"name": "description"})
         description = meta_description['content'] if meta_description else "No description"
 #        print("\ntitle:\n", title)
-#       print("\ndescription:\n", description)
+#        print("\ndescription:\n", description)
 
         # Get content from the article
         content_div = soup.select_one("article")
@@ -52,6 +52,19 @@ def scrape_page(url):
     except Exception as e:
         print(f"Error scraping {url}: {e}")
 
+    # Save progress intermittently
+    if len(data) % 10 == 0:
+        save_data()
+
+def save_data():
+    data_dir = os.path.join("..", "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Save the data to a JSON file
+    with open(os.path.join(data_dir, "swit_help_center.json"), "w", encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    print(f"Saved {len(data)} pages.")
+
 # Start scraping from the base URL
 scrape_page(base_url)
 
@@ -59,7 +72,7 @@ scrape_page(base_url)
 data_dir = os.path.join("..", "data")
 os.makedirs(data_dir, exist_ok=True)
 
-# Save the data to a JSON file
+# Save the final data to a JSON file
 with open(os.path.join(data_dir, "swit_help_center.json"), "w", encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, indent=4)
 
