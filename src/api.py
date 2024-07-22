@@ -41,9 +41,9 @@ def list_collections():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/col_struct", summary="Get collection structure", description="특정 컬렉션의 구조를 가져옵니다")
-def collection_structure():
+def collection_structure(cn: str = Query(..., description="Collection 이름을 입력하세요")):
     try:
-        structure = neural_searcher.col_struct()
+        structure = neural_searcher.col_struct(text=cn)
         return {"col_struct": structure}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -65,17 +65,12 @@ def count_all():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/search_help", summary="Search for swit help center", description="검색질의를 자연어로 입력하세요")
-def search_help(
-    q: str = Query(..., description="검색질의를 자연어로 입력하세요"),
-    skip: int = Query(0, description="페이지 시작 위치"),
-    limit: int = Query(5, description="페이지 크기")
-):
+def search_help(q: str = Query(..., description="검색질의를 자연어로 입력하세요"), skip: int = 0, limit: int = 5):
     try:
-        return {"result": neural_searcher.search(text=q, skip=skip, limit=limit)}
+        result = neural_searcher.search_help(text=q, skip=skip, limit=limit)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

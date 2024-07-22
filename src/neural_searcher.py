@@ -1,6 +1,6 @@
 from collections import defaultdict
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Filter, FieldCondition, SearchRequest
+from qdrant_client.http.models import Filter, FieldCondition, SearchRequest, models
 from sentence_transformers import SentenceTransformer
 
 
@@ -63,9 +63,9 @@ class NeuralSearcher:
         collections = self.qdrant_client.get_collections()
         return collections
 
-    def col_struct(self):
+    def col_struct(self,text: str):
         sample_data = self.qdrant_client.scroll(
-            collection_name=self.collection_name,
+            collection_name=text,
             limit=5
         )
         return sample_data
@@ -101,7 +101,8 @@ class NeuralSearcher:
 
     def search_help(self, text: str, skip: int = 0, limit: int = 5):
         vector = self.model.encode(text).tolist()
-        cn='swit_help'
+        cn = 'swit_help'
+
         # 실제 데이터를 가져오기 위한 호출
         search_result = self.qdrant_client.search(
             collection_name=cn,
@@ -111,18 +112,22 @@ class NeuralSearcher:
         )
         payloads = [hit.payload for hit in search_result]
 
-        # 전체 문서 수를 계산하기 위한 스크롤
-        scroll_result = self.qdrant_client.scroll(
-            collection_name=cn,
-            limit=100
-        )
-        total_count = len(scroll_result.points)
-        while scroll_result.next_page_offset is not None:
-            scroll_result = self.qdrant_client.scroll(
-                collection_name=cn,
-                limit=100,
-                offset=scroll_result.next_page_offset
-            )
-            total_count += len(scroll_result.points)
+        # 전체 문서 수를 계산하기 위한 필터 설정
+        # count_filter = models.Filter(
+        #     must=[
+        #         models.FieldCondition(
+        #             key="_vector",
+        #             match=models.MatchValue(value=vector)
+        #         )
+        #     ]
+        # )
+        #
+        # # 전체 문서 수 계산
+        # count_result = self.qdrant_client.count(
+        #     collection_name=cn,
+        #     filter=count_filter,
+        #     exact=True
+        # )
+        total_count = 0
 
         return {"total_count": total_count, "results": payloads}

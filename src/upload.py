@@ -1,15 +1,15 @@
+import os
+import json
 from datetime import datetime
-
-import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance
-import json
+from sentence_transformers import SentenceTransformer
 
 print("connect QdrantClient -", datetime.now())
 
 client = QdrantClient(url='http://localhost:6333')
 
-collection_name = "startups"
+collection_name = "swit_help"
 vector_size = 384
 distance_metric = Distance.COSINE
 
@@ -22,14 +22,25 @@ client.create_collection(
     vectors_config=VectorParams(size=vector_size, distance=distance_metric),
 )
 
-fd = open("../data/startups_demo.json")
+# 모델 초기화
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# payload is now an iterator over startup data
-payload = map(json.loads, fd)
+# 데이터 로드
+data_dir = os.path.join("..", "data")
+with open(os.path.join(data_dir, "swit_help_center_ko.json"), "r", encoding="utf-8") as f:
+    data = json.load(f)
 
-# Load all vectors into memory, numpy array works as iterable for itself.
-# Other option would be to use Mmap, if you don't want to load all data into RAM
-vectors = np.load("../data/startup_vectors.npy")
+# 벡터 및 payload 준비
+vectors = []
+payload = []
+
+for entry in data:
+    vector = model.encode(entry["content"]).tolist()
+    vectors.append(vector)
+    payload.append({
+        "url": entry["url"],
+        "content": entry["content"]
+    })
 
 print("upload data to Qdrant -", datetime.now())
 client.upload_collection(
