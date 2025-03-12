@@ -12,6 +12,7 @@ client = QdrantClient(url='http://localhost:6333')
 collection_name = "swit_help"
 vector_size = 384
 distance_metric = Distance.COSINE
+vector_name = "default"  # 벡터 이름 설정
 
 print("create collection -", datetime.now())
 if client.collection_exists(collection_name):
@@ -19,7 +20,7 @@ if client.collection_exists(collection_name):
 
 client.create_collection(
     collection_name=collection_name,
-    vectors_config=VectorParams(size=vector_size, distance=distance_metric),
+    vectors_config={vector_name: VectorParams(size=vector_size, distance=distance_metric)},
 )
 
 # 모델 초기화
@@ -31,23 +32,23 @@ with open(os.path.join(data_dir, "swit_help_center_ko.json"), "r", encoding="utf
     data = json.load(f)
 
 # 벡터 및 payload 준비
-vectors = []
-payload = []
+points = []
 
-for entry in data:
+for i, entry in enumerate(data):
     vector = model.encode(entry["content"]).tolist()
-    vectors.append(vector)
-    payload.append({
-        "url": entry["url"],
-        "content": entry["content"]
-    })
+    point = {
+        "id": i,
+        "vector": {vector_name: vector},  # 벡터 이름을 포함하여 벡터 설정
+        "payload": {
+            "url": entry["url"],
+            "content": entry["content"]
+        }
+    }
+    points.append(point)
 
 print("upload data to Qdrant -", datetime.now())
-client.upload_collection(
+client.upsert(
     collection_name=collection_name,
-    vectors=vectors,
-    payload=payload,
-    ids=None,  # Vector ids will be assigned automatically
-    batch_size=256,  # How many vectors will be uploaded in a single request?
+    points=points,
 )
 print("Finished All !!! -", datetime.now())

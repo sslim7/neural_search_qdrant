@@ -9,7 +9,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-neural_searcher = NeuralSearcher(collection_name="startups")
+neural_searcher = NeuralSearcher(collection_name="swit_help")
 
 @app.get("/api/search", summary="Search for startups", description="검색질의를 자연어로 입력하세요")
 def search_startup(

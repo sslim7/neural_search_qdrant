@@ -1,6 +1,6 @@
 from collections import defaultdict
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import Filter, FieldCondition, SearchRequest, models
+from qdrant_client import QdrantClient,models
+from qdrant_client.http.models import Filter, FieldCondition, SearchRequest, models, SearchParams
 from sentence_transformers import SentenceTransformer
 
 
@@ -9,32 +9,56 @@ class NeuralSearcher:
         self.collection_name = collection_name
         self.model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         self.qdrant_client = QdrantClient("http://localhost:6333")
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    def search(self, text: str, skip: int = 0, limit: int = 5):
+    def search(self, text: str, skip: int = 0, limit: int = 5, hnsw_ef: int = 50, score_threshold: float = 0.5):
         vector = self.model.encode(text).tolist()
+        print("\nvector:\n", vector)
+
+        # Search parameters 설정
+        search_params = models.SearchParams(hnsw_ef=hnsw_ef, exact=False)
 
         # 실제 데이터를 가져오기 위한 호출
         search_result = self.qdrant_client.search(
             collection_name=self.collection_name,
-            query_vector=vector,
+            query_vector=models.NamedVector(
+                name="default",
+                vector=vector
+            ),
+            search_params=search_params,
             limit=limit,
-            offset=skip
+            offset=skip,
+            with_vectors=True,
+            score_threshold=score_threshold
         )
         payloads = [hit.payload for hit in search_result]
 
-        # 전체 문서 수를 계산하기 위한 스크롤
-        scroll_result = self.qdrant_client.scroll(
-            collection_name=self.collection_name,
-            limit=100
-        )
-        total_count = len(scroll_result.points)
-        while scroll_result.next_page_offset is not None:
-            scroll_result = self.qdrant_client.scroll(
+        # 검색 결과를 출력하여 확인
+        print("\nSearch Results:")
+        for i, result in enumerate(search_result):
+            print(f"Result {i + 1}: ID={result.id}, Score={result.score}, Payload={result.payload}")
+
+        # 전체 검색 결과 수 계산
+        total_count = 0
+        offset = 0
+
+        while True:
+            scroll_result = self.qdrant_client.search(
                 collection_name=self.collection_name,
+                query_vector=models.NamedVector(
+                    name="default",
+                    vector=vector
+                ),
+                search_params=search_params,
                 limit=100,
-                offset=scroll_result.next_page_offset
+                offset=offset,
+                with_vectors=True,
+                score_threshold=score_threshold
             )
-            total_count += len(scroll_result.points)
+            total_count += len(scroll_result)
+            if len(scroll_result) < 100:
+                break
+            offset += 100
 
         return {"total_count": total_count, "results": payloads}
 
@@ -63,7 +87,7 @@ class NeuralSearcher:
         collections = self.qdrant_client.get_collections()
         return collections
 
-    def col_struct(self,text: str):
+    def col_struct(self, text: str):
         sample_data = self.qdrant_client.scroll(
             collection_name=text,
             limit=5

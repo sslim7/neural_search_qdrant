@@ -1,6 +1,7 @@
 import os
 import json
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import PointStruct, VectorParams, Distance
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
 
@@ -9,7 +10,7 @@ client = QdrantClient(url="http://localhost:6333")
 
 collection_name = "swit_help"
 vector_size = 384
-distance_metric = "Cosine"
+distance_metric = Distance.COSINE
 
 print("connect QdrantClient -", datetime.now())
 
@@ -19,7 +20,7 @@ if client.collection_exists(collection_name):
 
 client.create_collection(
     collection_name=collection_name,
-    vectors_config={"default": {"size": vector_size, "distance": distance_metric}}
+    vectors_config={"default": VectorParams(size=vector_size, distance=distance_metric)}
 )
 
 # 모델 초기화
@@ -34,24 +35,20 @@ points = []
 
 for i, entry in enumerate(data):
     vector = model.encode(entry["content"]).tolist()
-    point = {
-        "id": i,
-        "vector": vector,
-        "payload": {
+    point = PointStruct(
+        id=i,
+        vector={"default": vector},
+        payload={
             "url": entry["url"],
             "content": entry["content"]
         }
-    }
+    )
     points.append(point)
 
 # 데이터 업로드
-client.upload_collection(
+client.upsert(
     collection_name=collection_name,
-    vectors=points,
-    payload=data,
-    ids=None,  # Vector ids will be assigned automatically
-    batch_size=256,  # How many vectors will be uploaded in a single request?
-    vector_name="default"
+    points=points
 )
 
 print("Finished All !!! -", datetime.now())

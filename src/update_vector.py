@@ -1,5 +1,6 @@
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
+from qdrant_client.http.models import PointStruct
 
 # Qdrant 클라이언트 초기화
 client = QdrantClient(url="http://localhost:6333")
@@ -18,6 +19,22 @@ while scroll_result[0]:  # scroll_result.points 대신 scroll_result[0] 사용
     scroll_result = client.scroll(collection_name="swit_help", limit=100, offset=scroll_result[1])
 
 # 데이터 업데이트
+point = all_points[0]
+new_vector = model.encode(point.payload["content"]).tolist()
+operation_info = client.upsert(
+    collection_name="swit_help",
+    wait=True,
+    points=[
+        PointStruct(id="0520eb8c-90df-4ed9-aef1-82914151248a", vector=new_vector, payload={"city": "Berlin"}),
+        PointStruct(id=2, vector=[0.19, 0.81, 0.75, 0.11], payload={"city": "London"}),
+        PointStruct(id=3, vector=[0.36, 0.55, 0.47, 0.94], payload={"city": "Moscow"}),
+        PointStruct(id=4, vector=[0.18, 0.01, 0.85, 0.80], payload={"city": "New York"}),
+        PointStruct(id=5, vector=[0.24, 0.18, 0.22, 0.44], payload={"city": "Beijing"}),
+        PointStruct(id=6, vector=[0.35, 0.08, 0.11, 0.44], payload={"city": "Mumbai"}),
+    ]
+)
+print(operation_info)
+
 # updated_points = []
 for point in all_points:
     if point.vector is None:
